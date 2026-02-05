@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MP3 버튼 플레이어</title>
+  <style>
+    :root{
+      color-scheme: dark;
+      --bg:#0f1220; --panel:#141a33; --btn:#1c2140; --btnHover:#242a60;
+      --border:#2b3170; --borderHover:#3a42a5;
+      --active:#3a42a5; --activeBorder:#6b75ff;
+      --text:#eaeaf0; --muted:rgba(234,234,240,.75);
+      --shadow:rgba(0,0,0,.25); --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;padding:20px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+    header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;margin-bottom:14px}
+    h1{margin:0;font-size:22px;letter-spacing:.2px}
+    .meta{color:var(--muted);font-size:13px}
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    input[type="search"]{width:min(520px,100%);padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--panel);color:var(--text);outline:none}
+    input[type="search"]:focus{border-color:var(--activeBorder);box-shadow:0 0 0 3px rgba(107,117,255,.18)}
+    .controls{display:flex;gap:10px;flex-wrap:wrap}
+    .controls button{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--btn);color:var(--text);cursor:pointer}
+    .controls button:hover{background:var(--btnHover);border-color:var(--borderHover)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:14px}
+    .track-btn{background:var(--btn);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:transform .05s ease,background .15s ease,border-color .15s ease;text-align:left;box-shadow:0 6px 16px var(--shadow)}
+    .track-btn:hover{background:var(--btnHover);border-color:var(--borderHover)}
+    .track-btn:active{transform:translateY(1px)}
+    .track-btn.playing{background:var(--active);border-color:var(--activeBorder);box-shadow:0 0 0 2px rgba(107,117,255,.22) inset,0 10px 22px var(--shadow)}
+    .track-title{font-size:14px;line-height:1.25}
+    .track-file{margin-top:6px;font-size:12px;color:var(--muted);word-break:break-all}
+    .player-panel{margin-top:16px;padding:14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel);box-shadow:0 10px 24px var(--shadow)}
+    audio{width:100%;margin-top:10px}
+    .now{margin-top:2px;font-size:13px;color:var(--muted)}
+    .hint{margin-top:8px;font-size:12px;color:var(--muted)}
+    .pill{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:999px;margin-right:6px}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🎧 MP3 플레이리스트</h1>
+      <div class="meta">총 <span id="countTotal"></span>곡 · 표시 <span id="countShown"></span>곡</div>
+    </div>
+
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="검색 (예: ALKALOID / Kiss / 2wink ...)" autocomplete="off" />
+      <div class="controls">
+        <button id="btnPrev" type="button">⏮ 이전</button>
+        <button id="btnPlayPause" type="button">⏯ 재생/일시정지</button>
+        <button id="btnNext" type="button">⏭ 다음</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="player-panel">
+    <div class="now" id="now">재생 전</div>
+    <audio id="player" controls preload="none"></audio>
+    <div class="hint">
+      <span class="pill">단축키</span> <b>Space</b> 재생/정지 · <b>←/→</b> 이전/다음
+      <br/>
+      <span class="pill">팁</span> 파일명에 공백/특수문자가 있어도 재생되도록 링크를 자동 인코딩해놨어.
+    </div>
+  </div>
+
+  <div id="list" class="grid"></div>
+
+  <script>
+    const tracks = [{"title": "2wink - TwoWink Circus", "src": "audio/2wink_TwoWink_Circus_66s_86s.mp3", "file": "2wink_TwoWink_Circus_66s_86s.mp3"}, {"title": "ALKALOID - Kiss of Life", "src": "audio/ALKALOID_Kiss_of_Life_93s_113s.mp3", "file": "ALKALOID_Kiss_of_Life_93s_113s.mp3"}, {"title": "BaekhwaYoran - Hongwolya", "src": "audio/BaekhwaYoran_Hongwolya_53s_73s.mp3", "file": "BaekhwaYoran_Hongwolya_53s_73s.mp3"}, {"title": "BLEND+Heart - aid Cafeteria", "src": "audio/BLEND+Heart aid Cafeteria_81s_101s.mp3", "file": "BLEND+Heart aid Cafeteria_81s_101s.mp3"}, {"title": "Branco Sweet - Sweet White Song", "src": "audio/Branco Sweet_Sweet_White_Song_85s_105s.mp3", "file": "Branco Sweet_Sweet_White_Song_85s_105s.mp3"}, {"title": "Butou-kai - FIST OF SOUL", "src": "audio/Butou-kai -  FIST_OF_SOUL_58s_78s.mp3", "file": "Butou-kai -  FIST_OF_SOUL_58s_78s.mp3"}, {"title": "CrazyB - Crazy Roulette", "src": "audio/CrazyB_Crazy_Roulette_69s_89s.mp3", "file": "CrazyB_Crazy_Roulette_69s_89s.mp3"}, {"title": "Date - Plan A to Z", "src": "audio/Date_Plan_A_to_Z_52s_72s.mp3", "file": "Date_Plan_A_to_Z_52s_72s.mp3"}, {"title": "eden - genesis", "src": "audio/eden_genesis_55s_75s.mp3", "file": "eden_genesis_55s_75s.mp3"}, {"title": "EYE", "src": "audio/EYE_56s_76s.mp3", "file": "EYE_56s_76s.mp3"}, {"title": "Flambé - Have you been naughty or nice", "src": "audio/Flambé - Have_you_been_naughty_or_nice_68s_88s.mp3", "file": "Flambé - Have_you_been_naughty_or_nice_68s_88s.mp3"}, {"title": "Getto Spectacle - Moonlight Disco", "src": "audio/Getto Spectacle - Moonlight_Disco_75s_95s.mp3", "file": "Getto Spectacle - Moonlight_Disco_75s_95s.mp3"}, {"title": "JoyfulxBox - Ra bits", "src": "audio/JoyfulxBox_Ra_bits_85s_105s.mp3", "file": "JoyfulxBox_Ra_bits_85s_105s.mp3"}, {"title": "La mort - Noir - Neige", "src": "audio/La mort - Noir_Neige_85s_105s.mp3", "file": "La mort - Noir_Neige_85s_105s.mp3"}, {"title": "Maehokgeuk", "src": "audio/Maehokgeuk_88s_108s.mp3", "file": "Maehokgeuk_88s_108s.mp3"}, {"title": "MaM - HELLO NEW YEAR", "src": "audio/MaM_HELLO_NEW_YEAR_61s_81s.mp3", "file": "MaM_HELLO_NEW_YEAR_61s_81s.mp3"}, {"title": "Melody - in the Dark UNDEAD", "src": "audio/Melody_in_the_Dark_UNDEAD_59s_79s.mp3", "file": "Melody_in_the_Dark_UNDEAD_59s_79s.mp3"}, {"title": "MeteorRanger - Ryuseitai", "src": "audio/MeteorRanger_Ryuseitai_61s_81s.mp3", "file": "MeteorRanger_Ryuseitai_61s_81s.mp3"}, {"title": "Puffyí┘Bunny Paradigm - Reversi", "src": "audio/Puffyí┘Bunny Paradigm_Reversi_82s_102s.mp3", "file": "Puffyí┘Bunny Paradigm_Reversi_82s_102s.mp3"}, {"title": "Rebellion - Star", "src": "audio/Rebellion_Star_67s_87s.mp3", "file": "Rebellion_Star_67s_87s.mp3"}, {"title": "Ring a bell - Aisle - be with you", "src": "audio/Ring a bell - Aisle_be_with_you_72s_92s.mp3", "file": "Ring a bell - Aisle_be_with_you_72s_92s.mp3"}, {"title": "Silent - Oath", "src": "audio/Silent_Oath_58s_78s.mp3", "file": "Silent_Oath_58s_78s.mp3"}, {"title": "Special - for Princess", "src": "audio/Special_for_Princess_60s_80s.mp3", "file": "Special_for_Princess_60s_80s.mp3"}, {"title": "Stars - Ensemble OP", "src": "audio/Stars_Ensemble_OP_1s_21s.mp3", "file": "Stars_Ensemble_OP_1s_21s.mp3"}, {"title": "Temptation - Magic", "src": "audio/Temptation_Magic_70s_90s.mp3", "file": "Temptation_Magic_70s_90s.mp3"}, {"title": "XXVeil Midnight - Butlers", "src": "audio/XXVeil Midnight_Butlers_66s_86s.mp3", "file": "XXVeil Midnight_Butlers_66s_86s.mp3"}];
+
+    const list = document.getElementById("list");
+    const player = document.getElementById("player");
+    const now = document.getElementById("now");
+    const search = document.getElementById("search");
+    const countTotal = document.getElementById("countTotal");
+    const countShown = document.getElementById("countShown");
+
+    const btnPrev = document.getElementById("btnPrev");
+    const btnNext = document.getElementById("btnNext");
+    const btnPlayPause = document.getElementById("btnPlayPause");
+
+    countTotal.textContent = tracks.length;
+
+    let currentIndex = -1;
+    let currentBtn = null;
+    let buttons = [];
+
+    function setPlayingButton(btn){
+      if (currentBtn) currentBtn.classList.remove("playing");
+      currentBtn = btn;
+      if (currentBtn) currentBtn.classList.add("playing");
+    }
+
+    async function playIndex(i){
+      if (i < 0 || i >= tracks.length) return;
+      const t = tracks[i];
+      currentIndex = i;
+
+      const btn = buttons[i];
+      if (btn) setPlayingButton(btn);
+
+      player.pause();
+      player.currentTime = 0;
+
+      // ✅ 공백/특수문자/악센트/한글(가능하면)까지 깨짐 줄이기
+      player.src = encodeURI(t.src);
+
+      now.textContent = `재생 중: ${t.title}`;
+
+      try{
+        await player.play();
+      }catch(e){
+        now.textContent = `재생 실패 (파일명/경로 확인): ${t.title}`;
+        console.error(e);
+      }
+    }
+
+    function togglePlayPause(){
+      if (!player.src){
+        playIndex(0);
+        return;
+      }
+      if (player.paused) player.play().catch(()=>{});
+      else player.pause();
+    }
+
+    function next(){
+      if (tracks.length === 0) return;
+      const n = (currentIndex >= 0) ? (currentIndex + 1) : 0;
+      playIndex(Math.min(n, tracks.length - 1));
+    }
+
+    function prev(){
+      if (tracks.length === 0) return;
+      const p = (currentIndex >= 0) ? (currentIndex - 1) : 0;
+      playIndex(Math.max(p, 0));
+    }
+
+    function render(filterText=""){
+      list.innerHTML = "";
+      buttons = [];
+      const q = filterText.trim().toLowerCase();
+      let shown = 0;
+
+      tracks.forEach((t, i) => {
+        const hay = `${t.title} ${t.file}`.toLowerCase();
+        if (q && !hay.includes(q)) return;
+
+        shown++;
+
+        const btn = document.createElement("button");
+        btn.className = "track-btn";
+        btn.type = "button";
+        btn.innerHTML = `
+          <div class="track-title">${t.title}</div>
+          <div class="track-file">${t.file}</div>
+        `;
+
+        btn.onclick = () => {
+          if (currentIndex === i && player.src) {
+            togglePlayPause();
+            return;
+          }
+          playIndex(i);
+        };
+
+        list.appendChild(btn);
+        buttons[i] = btn;
+
+        if (i === currentIndex) setPlayingButton(btn);
+      });
+
+      countShown.textContent = shown;
+    }
+
+    search.addEventListener("input", (e) => render(e.target.value));
+
+    btnPrev.addEventListener("click", prev);
+    btnNext.addEventListener("click", next);
+    btnPlayPause.addEventListener("click", togglePlayPause);
+
+    player.addEventListener("ended", () => {
+      if (currentIndex >= 0 && currentIndex < tracks.length - 1) next();
+      else{
+        if (currentBtn) currentBtn.classList.remove("playing");
+        now.textContent = "재생 종료";
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+      if (e.code === "Space"){ e.preventDefault(); togglePlayPause(); }
+      if (e.code === "ArrowRight") next();
+      if (e.code === "ArrowLeft") prev();
+    });
+
+    render("");
+  </script>
+</body>
+</html>
